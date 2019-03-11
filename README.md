@@ -13,3 +13,4 @@ Language & ETC Tech
 - AWS
 - Git
 - Express
+- Chef (Server manaagement)
