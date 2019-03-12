@@ -5,7 +5,7 @@ OS
 - Windows 10
 - Linux
 
-Language & ETC Tech
+Language & Tech
 - JavaScript
 - CSS
 - Node.js
@@ -13,4 +13,3 @@ Language & ETC Tech
 - AWS
 - Git
 - Express
-- Chef (Server manaagement)
