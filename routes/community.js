@@ -2,7 +2,13 @@ var express = require('express');
 var router = express.Router();
 var template = require('../lib/template.js');
 var mysql = require('mysql');
+var cookieparse = require('cookie-parser');
 
+app = express();
+app.use(cookieparse());
+
+
+cookieparse()
 //database 연결
 var db = mysql.createConnection({
   host: '127.0.0.1',
@@ -12,12 +18,13 @@ var db = mysql.createConnection({
 });
 db.connect();
 
+//nav 변수
 var title = template.title('Community');
 
 //community 메인
 router.get('/', (req, res) => {
-  var login = template.login();
   var welcome = template.welcome();
+  var login = template.login(req, res);
   var body = template.community(login, welcome);
   var html = template.html(title, body);
   res.send(html);
@@ -26,8 +33,8 @@ router.get('/', (req, res) => {
 //공지 리스트
 router.get('/notice', (req, res) => {
   db.query('SELECT * FROM sldo_notice', (error, result) => {
-    var login = template.login();
     var notice = template.noticeboard(result);
+    var login = template.login(req, res);
     var body = template.community(login, notice);
     var html = template.html(title, body);
     res.send(html);
@@ -37,10 +44,9 @@ router.get('/notice', (req, res) => {
 //공지 상세
 router.get('/notice_detail', (req, res) => {
   var rqi = req.query.id;
-
   db.query('SELECT * FROM sldo_notice WHERE id=' + rqi, (error, result) => {
-    var login = template.login();
     var notice = template.noticedetail(result);
+    var login = template.login(req, res);
     var body = template.community(login, notice);
     var html = template.html(title, body);
     res.send(html);
@@ -56,8 +62,8 @@ router.get('/board', (req, res) => {
   ORDER BY B.grp DESC, B.grpcnt ASC`
 
   db.query(querys, (error, result) => {
-    var login = template.login();
     var board = template.freeboard(result);
+    var login = template.login(req, res);
     var body = template.community(login, board);
     var html = template.html(title, body);
     res.send(html);
@@ -76,8 +82,8 @@ router.get('/board_detail', (req, res) => {
   ORDER BY B.grp DESC, B.grpcnt ASC`
 
   db.query(querys, (error, result) => {
-    var login = template.login();
     var board = template.fbdetail(result);
+    var login = template.login(req, res);
     var body = template.community(login, board);
     var html = template.html(title, body);
     res.send(html);
@@ -87,37 +93,61 @@ router.get('/board_detail', (req, res) => {
 //게시판 
 router.get('/write', (req, res) => {
   var querys = `
-  SELECT U.name name
-  FROM sldo_user U
-  WHERE U.id = 1
+  SELECT name
+  FROM sldo_user
+  WHERE id = '${id}'
   `;
 
   db.query(querys, (error, result) => {
-    var login = template.login();
     var board = template.write(result);
+    var login = template.login(req, res);
     var body = template.community(login, board);
     var html = template.html(title, body);
     res.send(html);
   });
 });
 
-router.get('/write_process', (req, res) => {
+//글 저장 프로세스
+router.post('/write_process', (req, res) => {
   var sel_querys = `SELECT id, grp, grpid, grpcnt FROM sldo_board ORDER BY grp DESC`;
-
+  var subject = req.body.subject;
+  var description = req.body.description;
   db.query(sel_querys, (error, result) => {
+    var id = result[0].id + 1;
     var wt_querys = `INSERT INTO sldo_board (subject, description, postdt, upddt, delyn, viewcnt, uid, grp, grpid, grpcnt)
-    VALUES ('write 테스트', 'write 테스트내용', now(), now(), default, default, '1','${result[0].grp+1}','0','0')`;
+    VALUES ('${subject}', '${description}', now(), now(), default, default, '1','${result[0].grp+1}','0','0')`;
     db.query(wt_querys, (error, result) => {
-      
+      res.redirect(`/community/board_detail?id=${id}`);
     });
   });
 });
 
 //로그인 프로세스
 router.post('/login_process', (req, res) => {
-  db.query('SELECT * FROM sldo_user', (error, result) => {
-
+  var querys = 'SELECT * FROM sldo_user';
+  var auth = '';
+  var name = '';
+  var account = req.body.account;
+  var password = req.body.password;
+  var i = 0;
+  db.query(querys, (error, result) => {
+    for (i = 0; i < result.length; i++) {
+      if (result[i].account === account && result[i].password === password) {
+        auth = result[i].auth;
+        name = result[i].name;
+      }
+    }
+    res.cookie('auth', auth);
+    res.cookie('name', name);
+    res.redirect('/community');
   });
+});
+//로그아웃 프로세스
+router.post('/logout_process', (req, res) => {
+  res.clearCookie('auth');
+  res.clearCookie('name');
+
+  res.redirect('/community');
 });
 
 module.exports = router;
